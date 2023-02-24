@@ -1,51 +1,84 @@
-import React, { useState, useEffect, useReducer } from "react";
+import React, { useContext, useEffect, useReducer } from "react";
 
 import Card from "../UI/Card/Card";
 import classes from "./Login.module.css";
 import Button from "../UI/Button/Button";
+import AuthContext from "../../context/auth-context";
 
-const emailReducer = (state, action) => {
-  if (action.id === "USER_INPUT") {
-    return { value: action.value, isValid: action.value.includes("@") };
+const loginReducer = (state, action) => {
+  /* Email (value update & validate) */
+  if (action.id === "EMAIL") {
+    if (action.type === "VALUE_UPDATE") {
+      return {
+        ...state,
+        emailValue: action.value,
+        isEmailValid: action.value.includes("@"),
+      };
+    }
+    if (action.type === "VALIDATE") {
+      return {
+        ...state,
+        emailValue: state.emailValue,
+        isEmailValid: state.emailValue.includes("@"),
+      };
+    }
   }
-  if (action.id === "LOST_FOCUS") {
-    return { value: state.value, isValid: state.value.includes("@") };
-  }
-  return { value: "", isValid: false };
-};
 
-const passwordReducer = (state, action) => {
-  if (action.id === "USER_INPUT") {
-    return { value: action.value, isValid: action.value.trim().length > 6 };
+  /* Password (value update & validate) */
+  if (action.id === "PASSWORD") {
+    if (action.type === "VALUE_UPDATE") {
+      return {
+        ...state,
+        passwordValue: action.value,
+        isPasswordValid: action.value.trim().length > 6,
+      };
+    }
+    if (action.type === "VALIDATE") {
+      return {
+        ...state,
+        passwordValue: state.passwordValue,
+        isPasswordValid: state.passwordValue.trim().length > 6,
+      };
+    }
   }
-  if (action.id === "LOST_FOCUS") {
-    return { value: state.value, isValid: state.value.trim().length > 6 };
+
+  /* Login (validate) */
+  if (action.id === "LOGIN") {
+    return {
+      ...state,
+      isLoginValid: state.isEmailValid && state.isPasswordValid,
+    };
   }
-  return { value: "", isValid: false };
+
+  return {
+    emailValue: "",
+    isEmailValid: false,
+    passwordValue: "",
+    isPasswordValid: false,
+    isLoginValid: false,
+  };
 };
 
 const Login = (props) => {
   /* 7.- useReducer hook */
-  const [emailState, dispatchEmail] = useReducer(emailReducer, {
-    value: "",
-    isValid: false,
-  });
-  const [passwordState, dispatchPassword] = useReducer(passwordReducer, {
-    value: "",
-    isValid: false,
+  const [loginState, dispatchLogin] = useReducer(loginReducer, {
+    emailValue: "",
+    isEmailValid: false,
+    passwordValue: "",
+    isPasswordValid: false,
+    isLoginValid: false,
   });
 
-  const [formIsValid, setFormIsValid] = useState(false);
-
-  /* Alias for object destructuring */
-  const { isValid: isEmailValid } =  emailState;
-  const { isValid: isPasswordValid } =  passwordState;
+  /* Destructuring state object properties for a correct useEffect management */
+  const { isEmailValid } = loginState;
+  const { isPasswordValid } = loginState;
 
   /* 6.- Side effect dependencies */
   useEffect(() => {
     /* 6.- Set time out */
     const timeOutId = setTimeout(() => {
-      setFormIsValid(isEmailValid && isPasswordValid);
+      /* Validate Login */
+      dispatchLogin({ id: "LOGIN" });
     }, 500);
 
     return () => {
@@ -53,31 +86,45 @@ const Login = (props) => {
     };
   }, [isEmailValid, isPasswordValid]);
 
-
-
   const emailChangeHandler = (event) => {
-    /* value handler */
-    dispatchEmail({ id: "USER_INPUT", value: event.target.value });
+    /* Update email value */
+    dispatchLogin({
+      id: "EMAIL",
+      type: "VALUE_UPDATE",
+      value: event.target.value,
+    });
   };
 
   const passwordChangeHandler = (event) => {
-    /* value handler */
-    dispatchPassword({ id: "USER_INPUT", value: event.target.value });
+    /* Update password value */
+    dispatchLogin({
+      id: "PASSWORD",
+      type: "VALUE_UPDATE",
+      value: event.target.value,
+    });
   };
 
   const validateEmailHandler = () => {
-    /* valid handler */
-    dispatchEmail({ id: "LOST_FOCUS" });
+    /* Validate email */
+    dispatchLogin({
+      id: "EMAIL",
+      type: "VALIDATE",
+    });
   };
 
   const validatePasswordHandler = () => {
-    /* valid handler */
-    dispatchPassword({ id: "LOST_FOCUS" });
+    /* Validate password */
+    dispatchLogin({
+      id: "PASSWORD",
+      type: "VALIDATE",
+    });
   };
+
+  const authContext = useContext(AuthContext);
 
   const submitHandler = (event) => {
     event.preventDefault();
-    props.onLogin(emailState.value, passwordState.value);
+    authContext.onLogin(loginState.emailValue, loginState.passwordValue);
   };
 
   return (
@@ -92,7 +139,7 @@ const Login = (props) => {
           <input
             type='email'
             id='email'
-            value={emailState.value}
+            value={loginState.emailValue}
             onChange={emailChangeHandler}
             onBlur={validateEmailHandler}
           />
@@ -106,13 +153,17 @@ const Login = (props) => {
           <input
             type='password'
             id='password'
-            value={passwordState.value}
+            value={loginState.passwordValue}
             onChange={passwordChangeHandler}
             onBlur={validatePasswordHandler}
           />
         </div>
         <div className={classes.actions}>
-          <Button type='submit' className={classes.btn} disabled={!formIsValid}>
+          <Button
+            type='submit'
+            className={classes.btn}
+            disabled={!loginState.isLoginValid}
+          >
             Login
           </Button>
         </div>
